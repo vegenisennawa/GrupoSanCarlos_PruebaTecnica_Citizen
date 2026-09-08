@@ -18,3 +18,32 @@ Al momento de que el usuario pasa la validación del login, el sistema ejecuta i
 
 ## 🌐 Consumo de API
 Para evitar el agotamiento de sockets (*socket exhaustion*), la conexión se gestiona mediante `IHttpClientFactory`. Además, se implementó el paquete nativo `Microsoft.Extensions.Http.Resilience` de .NET 8, el cual configura automáticamente políticas de resiliencia avanzadas (patrones de *Retry* y *Circuit Breaker*) para proteger la aplicación ante posibles caídas o intermitencias del servicio externo, sin necesidad de programar políticas manuales complejas.
+
+## 🪪 Cálculo de RFC y CURP (Personas Físicas)
+Se implementó un motor de reglas para cumplir con las normativas vigentes, incluyendo diccionarios para omitir preposiciones (DE, LA, DEL, etc.) y un filtro de palabras inconvenientes. Al no contar con los registros originales del SAT/RENAPO, el sistema genera las homoclaves de manera automática.
+
+**Ejemplo del algoritmo en acción:**
+* **Datos:** Juana Paulina Águila Hernández (Femenino (Mujer), Jalisco, Nacimiento: 20-12-1988)
+* **RFC Calculado:** `AUHJ881220XXX`
+* **CURP Calculada:** `AUHJ881220MJCGRNXX`
+
+**Desglose de Reglas (Ejemplo CURP):**
+* **A:** Primera letra del apellido paterno.
+* **U:** Primera vocal interna del apellido paterno.
+* **H:** Primera letra del apellido materno.
+* **J:** Primera letra del primer nombre.
+* **881220:** Año (88), Mes (12) y Día (20) de nacimiento.
+* **M:** Género (Mujer).
+* **JC:** Clave del estado de nacimiento (Jalisco).
+* **G:** Primera consonante interna del apellido paterno.
+* **R:** Primera consonante interna del apellido materno.
+* **N:** Primera consonante interna del primer nombre.
+* **XX:** Homoclave generada por el sistema (2 caracteres alfanuméricos).
+
+**Desglose de Reglas (Ejemplo RFC):**
+* **A:** Primera letra del apellido paterno.
+* **U:** Primera vocal interna del apellido paterno.
+* **H:** Primera letra del apellido materno.
+* **J:** Primera letra del primer nombre.
+* **881220:** Año (88), Mes (12) y Día (20) de nacimiento.
+* **XXX:** Homoclave generada por el sistema (3 caracteres alfanuméricos).

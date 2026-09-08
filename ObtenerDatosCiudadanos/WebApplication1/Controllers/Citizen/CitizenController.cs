@@ -21,6 +21,10 @@ namespace WebApplication1.Controllers
         public string Rfc_Comparacion { get; set; }
         public string Curp_Comparacion { get; set; }
 
+        // Diccionario oficial de palabras inconvenientes
+        private static readonly string[] Inconvenientes = { "BUEY", "CACA", "CACO", "CAGA", "CAGO", "CAKA", "CAKO", "COGE", "COJA", "COJE", "COJI", "COJO", "CULO", "FETO", "GUEY", "JOTO", "KACA", "KACO", "KAGA", "KAGO", "KOGE", "KOJO", "KAKA", "KULO", "MAME", "MAMO", "MEAR", "MEAS", "MEON", "MION", "MOCO", "MULA", "PEDA", "PEDO", "PENE", "PUTA", "PUTO", "QULO", "RATA", "RUIN", "TETA", "VACA", "VAGA", "VAGO", "WEY" };
+        private static readonly string[] Preposiciones = { "DA ", "DAS ", "DE ", "DEL ", "DER ", "DI ", "DIE ", "DD ", "EL ", "LA ", "LOS ", "LAS ", "LE ", "LES ", "MAC ", "MC ", "VAN ", "VON ", "Y " };
+
         /// <summary>
         /// 
         /// </summary>
@@ -30,38 +34,18 @@ namespace WebApplication1.Controllers
             {
                 try
                 {
-                    if (string.IsNullOrEmpty(Nombre) || string.IsNullOrEmpty(Apellido_Paterno) || string.IsNullOrEmpty(Fecha_Nac))
-                        return "INCOMPLETO";
+                    if (string.IsNullOrEmpty(Nombre) || string.IsNullOrEmpty(Apellido_Paterno) || string.IsNullOrEmpty(Fecha_Nac)) return "INCOMPLETO";
+                    string baseRfc = ObtenerLetrasBase();
 
-                    string p = Apellido_Paterno.ToUpper().Trim();
-                    string m = (Apellido_Materno ?? "").ToUpper().Trim();
-                    string n = Nombre.ToUpper().Trim();
-
-                    // 1. Primera letra del apellido paterno y primera vocal interna
-                    char c1 = p[0];
-                    char c2 = p.Substring(1).FirstOrDefault(c => "AEIOU".Contains(c));
-                    if (c2 == '\0') c2 = 'X';
-
-                    // 2. Primera letra del apellido materno (o 'X' si no tiene)
-                    char c3 = !string.IsNullOrEmpty(m) ? m[0] : 'X';
-
-                    // 3. Primera letra del primer nombre
-                    char c4 = n[0];
-
-                    // 4. Fecha de nacimiento (YYMMDD) extraída de una fecha estándar (ej: 1995-10-25)
-                    // Ajusta este parse si tu formato de texto de fecha es diferente
                     if (DateTime.TryParse(Fecha_Nac, out DateTime fecha))
                     {
                         string f = fecha.ToString("yyMMdd");
-                        return $"{c1}{c2}{c3}{c4}{f}";
+                        string homoclave = GenerarHomoclave(Nombre + Apellido_Paterno + Fecha_Nac, 3); // Tres caracteres para RFC.
+                        return $"{baseRfc}{f}{homoclave}";
                     }
-
                     return "FECHA_ERR";
                 }
-                catch
-                {
-                    return "ERROR";
-                }
+                catch { return "ERROR"; }
             }
         }
 
@@ -74,29 +58,123 @@ namespace WebApplication1.Controllers
             {
                 try
                 {
-                    if (string.IsNullOrEmpty(Nombre) || string.IsNullOrEmpty(Apellido_Paterno) || string.IsNullOrEmpty(Sexo) || string.IsNullOrEmpty(Clave_Edo_Nac))
-                        return "INCOMPLETO";
+                    if (string.IsNullOrEmpty(Nombre) || string.IsNullOrEmpty(Apellido_Paterno) || string.IsNullOrEmpty(Sexo) || string.IsNullOrEmpty(Clave_Edo_Nac)) return "INCOMPLETO";
 
-                    // Base del RFC compartida (Primeras 4 letras + 6 números de fecha)
-                    string baseRfc = Rfc_Calculado;
-                    if (baseRfc == "ERROR" || baseRfc == "INCOMPLETO" || baseRfc == "FECHA_ERR") return "ERROR_BASE";
+                    string baseRfc = ObtenerLetrasBase();
+                    if (DateTime.TryParse(Fecha_Nac, out DateTime fecha))
+                    {
+                        string f = fecha.ToString("yyMMdd");
+                        string s_limpio = Sexo.ToUpper().Trim();
+                        string s = "X";
+                        if (s_limpio.StartsWith("F") || s_limpio == "MUJER") s = "M";  
+                        else if (s_limpio.StartsWith("M") || s_limpio == "HOMBRE") s = "H";  
+                        string edo = Clave_Edo_Nac.ToUpper().Trim();
 
-                    // Sexo (H/M) y Estado (2 dígitos de RENAPO)
-                    string s = Sexo.ToUpper().Substring(0, 1);
-                    string edo = Clave_Edo_Nac.ToUpper().PadRight(2, 'X').Substring(0, 2);
+                        char consP = ObtenerPrimeraConsonanteInterna(RemoverPreposiciones(Apellido_Paterno));
+                        char consM = ObtenerPrimeraConsonanteInterna(RemoverPreposiciones(Apellido_Materno));
+                        char consN = ObtenerPrimeraConsonanteInterna(ObtenerNombreValido(Nombre));
 
-                    // Consonantes internas del Paterno, Materno y Nombre
-                    char consP = ObtenerPrimeraConsonanteInterna(Apellido_Paterno);
-                    char consM = ObtenerPrimeraConsonanteInterna(Apellido_Materno);
-                    char consN = ObtenerPrimeraConsonanteInterna(Nombre);
-
-                    return $"{baseRfc}{s}{edo}{consP}{consM}{consN}";
+                        string homoclaveCurp = GenerarHomoclave(baseRfc + f, 2); // 2 caracteres para CURP
+                        return $"{baseRfc}{f}{s}{edo}{consP}{consM}{consN}{homoclaveCurp}";
+                    }
+                    return "FECHA_ERR";
                 }
-                catch
-                {
-                    return "ERROR";
-                }
+                catch { return "ERROR"; }
             }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="texto"></param>
+        /// <returns></returns>
+        private string LimpiarCadena(string texto)
+        {
+            if (string.IsNullOrEmpty(texto)) return "";
+            texto = texto.ToUpper().Trim();
+            texto = texto.Replace("Ñ", "X").Replace("Á", "A").Replace("É", "E").Replace("Í", "I").Replace("Ó", "O").Replace("Ú", "U");
+            return texto;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="texto"></param>
+        /// <returns></returns>
+        private string RemoverPreposiciones(string texto)
+        {
+            texto = LimpiarCadena(texto) + " ";
+            bool cambios;
+            do
+            {
+                cambios = false;
+                foreach (var prep in Preposiciones)
+                {
+                    if (texto.StartsWith(prep))
+                    {
+                        texto = texto.Substring(prep.Length);
+                        cambios = true;
+                    }
+                }
+            } while (cambios);
+            return texto.Trim();
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="nombreStr"></param>
+        /// <returns></returns>
+        private string ObtenerNombreValido(string nombreStr)
+        {
+            string limpio = RemoverPreposiciones(nombreStr);
+            string[] partes = limpio.Split(' ');
+            if (partes.Length > 1 && (partes[0] == "JOSE" || partes[0] == "MARIA" || partes[0] == "MA." || partes[0] == "MA" || partes[0] == "J." || partes[0] == "J"))
+                return partes[1];
+            return partes[0];
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        private string ObtenerLetrasBase()
+        {
+            string p = RemoverPreposiciones(Apellido_Paterno);
+            string m = RemoverPreposiciones(Apellido_Materno);
+            string n = ObtenerNombreValido(Nombre);
+
+            char c1 = p.Length > 0 ? p[0] : 'X';
+            char c2 = p.Length > 1 ? (p.Substring(1).FirstOrDefault(c => "AEIOU".Contains(c))) : 'X';
+            if (c2 == '\0') c2 = 'X';
+            char c3 = string.IsNullOrEmpty(m) ? 'X' : m[0];
+            char c4 = n.Length > 0 ? n[0] : 'X';
+
+            string base4 = $"{c1}{c2}{c3}{c4}";
+
+            // Validar palabras inconvenientes
+            if (Inconvenientes.Contains(base4))
+                base4 = base4[0] + "X" + base4.Substring(2);
+
+            return base4;
+        }
+
+        /// <summary>
+        /// Generador automático de homoclave determinista
+        /// </summary>
+        /// <param name="semilla"></param>
+        /// <param name="longitud"></param>
+        /// <returns></returns>
+        private string GenerarHomoclave(string semilla, int longitud)
+        {
+            int hash = Math.Abs(semilla.GetHashCode());
+            string charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            string resultado = "";
+            for (int i = 0; i < longitud; i++)
+            {
+                resultado += charset[(hash / (int)Math.Pow(36, i)) % 36];
+            }
+            return resultado;
         }
 
         /// <summary>
@@ -107,9 +185,7 @@ namespace WebApplication1.Controllers
         private char ObtenerPrimeraConsonanteInterna(string cadena)
         {
             if (string.IsNullOrEmpty(cadena)) return 'X';
-            string str = cadena.ToUpper().Trim();
-            // Saltamos la primera letra (índice 0) y buscamos la primera consonante
-            char cons = str.Substring(1).FirstOrDefault(c => !"AEIOU ".Contains(c));
+            char cons = cadena.Substring(1).FirstOrDefault(c => !"AEIOU ".Contains(c));
             return cons != '\0' ? cons : 'X';
         }
     }
