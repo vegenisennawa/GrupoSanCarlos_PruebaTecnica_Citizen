@@ -52,6 +52,18 @@ namespace WebApplication1.Controllers
             {"YN", "Yucatán"}, {"ZS", "Zacatecas"}, {"NE", "Extranjero"}
         };
 
+        // Diccionario oficial de equivalencias del SAT para el cálculo de la homoclave
+        private static readonly Dictionary<char, string> EquivalenciasSAT = new Dictionary<char, string>()
+        {
+            {' ', "00"}, {'0', "00"}, {'1', "01"}, {'2', "02"}, {'3', "03"}, {'4', "04"},
+            {'5', "05"}, {'6', "06"}, {'7', "07"}, {'8', "08"}, {'9', "09"}, {'&', "10"},
+            {'A', "11"}, {'B', "12"}, {'C', "13"}, {'D', "14"}, {'E', "15"}, {'F', "16"},
+            {'G', "17"}, {'H', "18"}, {'I', "19"}, {'J', "21"}, {'K', "22"}, {'L', "23"},
+            {'M', "24"}, {'N', "25"}, {'O', "26"}, {'P', "27"}, {'Q', "28"}, {'R', "29"},
+            {'S', "32"}, {'T', "33"}, {'U', "34"}, {'V', "35"}, {'W', "36"}, {'X', "37"},
+            {'Y', "38"}, {'Z', "39"}, {'Ñ', "40"}
+        };
+
         /// <summary>
         /// Estado formateado para mostrar en la vista, por ejemplo: "Jalisco (JC)"
         /// </summary>
@@ -88,7 +100,7 @@ namespace WebApplication1.Controllers
                     if (DateTime.TryParse(Fecha_Nac, out DateTime fecha))
                     {
                         string f = fecha.ToString("yyMMdd");
-                        string homoclave = GenerarHomoclave(Nombre + Apellido_Paterno + Fecha_Nac, 3); // Tres caracteres para RFC.
+                        string homoclave = GenerarHomoclaveRFCExacta($"{Apellido_Paterno} {Apellido_Materno} {Nombre}"); 
                         return $"{baseRfc}{f}{homoclave}";
                     }
                     return "FECHA_ERR";
@@ -126,7 +138,11 @@ namespace WebApplication1.Controllers
                         char consM = ObtenerPrimeraConsonanteInterna(RemoverPreposiciones(Apellido_Materno));
                         char consN = ObtenerPrimeraConsonanteInterna(ObtenerNombreValido(Nombre));
 
-                        string homoclaveCurp = GenerarHomoclave(baseRfc + f, 2); // 2 caracteres para CURP
+                        // Armamos los primeros 16 caracteres
+                        string baseCurp16 = $"{baseRfc}{f}{s}{edo}{consP}{consM}{consN}";
+
+                        // Generamos los últimos 2 caracteres con la regla oficial
+                        string homoclaveCurp = GenerarHomoclaveCurpExacta(baseCurp16, fecha);
                         return $"{baseRfc}{f}{s}{edo}{consP}{consM}{consN}{homoclaveCurp}";
                     }
                     return "FECHA_ERR";
@@ -262,6 +278,81 @@ namespace WebApplication1.Controllers
                 resultado += charset[(hash / (int)Math.Pow(36, i)) % 36];
             }
             return resultado;
+        }
+
+        /// <summary>
+        /// Algoritmo matemático oficial (Módulo 34) del SAT para la homoclave
+        /// </summary>
+        private string GenerarHomoclaveRFCExacta(string nombreCompleto)
+        {
+            if (string.IsNullOrEmpty(nombreCompleto)) return "XXX";
+
+            string limpio = nombreCompleto.ToUpper()
+                                          .Replace("Á", "A").Replace("É", "E")
+                                          .Replace("Í", "I").Replace("Ó", "O")
+                                          .Replace("Ú", "U").Trim();
+
+            // 1. Asignar valores numéricos a cada letra
+            string equivalencias = "0"; // Inicia con 0 por regla
+            foreach (char c in limpio)
+            {
+                if (EquivalenciasSAT.TryGetValue(c, out string val))
+                {
+                    equivalencias += val;
+                }
+                else
+                {
+                    equivalencias += "00";
+                }
+            }
+
+            // 2. Multiplicación cruzada
+            int suma = 0;
+            for (int i = 0; i < equivalencias.Length - 1; i++)
+            {
+                int val1 = int.Parse(equivalencias.Substring(i, 2));
+                int val2 = int.Parse(equivalencias.Substring(i + 1, 1));
+                suma += (val1 * val2);
+            }
+
+            // 3. Obtener el Módulo 34
+            int digitos = suma % 1000;
+            int cociente = digitos / 34;
+            int residuo = digitos % 34;
+
+            // Tabla oficial del SAT (34 caracteres)
+            string tabla = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
+
+            // Nota: Retornamos los 2 caracteres del cálculo + 'A' simulando el dígito verificador final
+            return $"{tabla[cociente]}{tabla[residuo]}A";
+        }
+
+        /// <summary>
+        /// Algoritmo oficial de RENAPO (Módulo 10) para el dígito verificador y homoclave de siglo
+        /// </summary>
+        private string GenerarHomoclaveCurpExacta(string curp16, DateTime fechaNacimiento)
+        {
+            if (curp16.Length != 16) return "00";
+
+            // 1. Carácter 17: Homoclave de Siglo (0 para < 2000, A para >= 2000)
+            char siglo = fechaNacimiento.Year < 2000 ? '0' : 'A';
+            string curp17 = curp16 + siglo;
+
+            // 2. Carácter 18: Dígito Verificador (Módulo 10)
+            string diccionario = "0123456789ABCDEFGHIJKLMNÑOPQRSTUVWXYZ";
+            int suma = 0;
+
+            for (int i = 0; i < 17; i++)
+            {
+                int valor = diccionario.IndexOf(curp17[i]);
+                int peso = 18 - i; // Los pesos van del 18 al 2
+                suma += (valor * peso);
+            }
+
+            int residuo = suma % 10;
+            int digitoVerificador = residuo == 0 ? 0 : 10 - residuo;
+
+            return $"{siglo}{digitoVerificador}";
         }
 
         /// <summary>

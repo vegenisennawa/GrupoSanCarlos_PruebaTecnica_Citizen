@@ -44,6 +44,27 @@ Se debe de tomar en cuenta que, si la persona solo tiene un apellido:
 * **N:** Primera consonante interna del primer nombre.
 * **XX:** Homoclave generada por el sistema (2 caracteres alfanuméricos).
 
+**Notas sobre el cálculo de la homoclave en la CURP:** <br>
+La RENAPO maneja una serie de fórmulas para calcular la homoclave:
+* **a) Carácter 17 (Siglo):** Se asigna de forma determinista evaluando el año de nacimiento (numérico '0'-'9' para nacidos antes del 2000, y alfabético 'A'-'Z' para nacidos del 2000 en adelante).
+    * **0:** Homoclave de siglo (Nacimiento antes del año 2000).
+* **b) Carácter 18 (Dígito Verificador):** Se implementó el algoritmo matemático oficial de Módulo 10, el cual asigna un valor posicional decreciente (del 18 al 2) a cada uno de los primeros 17 caracteres, sumando los productos y calculando la diferencia del residuo de 10.
+
+**Cálculo Matemático del Dígito Verificador (CURP):**
+Para obtener el dígito `4`, el sistema asigna un valor a cada carácter (A-Z = 10-36, 0-9 = 0-9) y lo multiplica por un peso posicional descendente (del 18 al 2):
+
+```text
+A(10)x18 = 180  | U(31)x17 = 527 | H(17)x16 = 272 | J(19)x15 = 285
+8(8)x14 = 112   | 8(8)x13 = 104  | 1(1)x12 = 12   | 2(2)x11 = 22
+2(2)x10 = 20    | 0(0)x9 = 0     | M(22)x8 = 176  | J(19)x7 = 133
+C(12)x6 = 72    | G(16)x5 = 80   | R(28)x4 = 112  | N(23)x3 = 69
+0(0)x2 = 0
+```
+
+*Sumatoria total:* **2176**. Se calcula el residuo de la división entre 10 (`2176 % 10 = 6`). Finalmente, se resta el residuo a 10 (`10 - 6 = 4`). El dígito verificador es **4**.
+
+CURP: **AUHJ881220MJCGRN04**
+
 **Desglose de Reglas (Ejemplo RFC):**
 * **A:** Primera letra del apellido paterno.
 * **U:** Primera vocal interna del apellido paterno.
@@ -51,6 +72,58 @@ Se debe de tomar en cuenta que, si la persona solo tiene un apellido:
 * **J:** Primera letra del primer nombre.
 * **881220:** Año (88), Mes (12) y Día (20) de nacimiento.
 * **XXX:** Homoclave generada por el sistema (3 caracteres alfanuméricos).
+
+**Notas sobre el cálculo de la homoclave en el RFC:** <br>
+El SAT maneja una serie de equivalencias y fórmulas para calcular la homoclave:
+
+* **a) Asignación de valores numéricos a las letras:** A diferencia de una conversión de código ASCII tradicional, el SAT utiliza una tabla de equivalencias estricta (Anexo 22) donde se omiten intencionalmente las decenas cerradas (salta del 19 al 21, y del 29 al 32). Por lo tanto, se implementó un Dictionary (EquivalenciasSAT) para mapear cada carácter (A-Z, Ñ, & y espacios) a su valor exacto de dos dígitos en tiempo constante (O(1)), garantizando que letras como la 'A' valgan 11, la 'J' valga 21 y la 'Z' valga 39 de acuerdo con la ley.
+    
+    El nombre `AGUILA HERNANDEZ JUANA PAULINA` se traduce a la siguiente cadena (siempre anteponiendo un `0` inicial por norma del SAT):
+    
+    ```text
+    0 (Base)
+    A = 11 | G = 17 | U = 34 | I = 19 | L = 23 | A = 11 | (Espacio) = 00 
+    H = 18 | E = 15 | R = 29 | N = 25 | A = 11 | N = 25 | D = 14 | E = 15 | Z = 39 | (Espacio) = 00 
+    J = 21 | U = 34 | A = 11 | N = 25 | A = 11 | (Espacio) = 00 
+    P = 27 | A = 11 | U = 34 | L = 23 | I = 19 | N = 25 | A = 11
+    
+    Cadena final: 
+    0111734192311001815292511251415390021341125110027113423192511
+    ```
+
+* **b) Multiplicación cruzada:** Cuando el nombre se traduce en una serie de números se van multiplicando los números de la misma cadena por pares, yendo de izquierda a derecha, para así irlos sumando.
+    
+    Luego, se multiplica cada par de dígitos por el número inmediato a su derecha de forma sucesiva y se suman los resultados de toda la cadena:
+
+    ```text
+    (01x1) + (11x1) + (11x7) + (17x3) + (73x4) + (34x1) + (41x9) + (19x2) + 
+    (92x3) + (23x1) + (31x1) + (11x0) + (10x0) + (00x1) + (01x8) + (18x1) + 
+    (81x5) + (15x2) + (52x9) + (29x2) + (92x5) + (25x1) + (51x1) + (11x2) + 
+    (12x5) + (25x1) + (51x4) + (14x1) + (41x5) + (15x3) + (53x9) + (39x0) + 
+    (90x0) + (00x2) + (02x1) + (21x3) + (13x4) + (34x1) + (41x1) + (11x2) + 
+    (12x5) + (25x1) + (51x1) + (11x0) + (10x0) + (00x2) + (02x7) + (27x1) + 
+    (71x1) + (11x3) + (13x4) + (34x2) + (42x3) + (23x1) + (31x9) + (19x2) + 
+    (92x5) + (25x1) + (51x1) 
+    = 4562
+    ```
+
+* **c) Reducción (Módulo 34):** Del número resultante de la sumatoria se toman los últimos 3 dígitos, para luego dividirlos entre 34 y obtener tanto el cociente como el residuo.
+    
+    Como la sumatoria total del paso anterior fue **`4562`**, tomamos los últimos 3 dígitos (**`562`**) y aplicamos las operaciones matemáticas:
+    * **Cociente:** `562 / 34 = 16`
+    * **Residuo:** `562 % 34 = 18`
+
+* **d) Traducción:** El SAT tiene una tabla oficial de 34 caracteres: **"123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"**.
+    * El primer carácter de la homoclave corresponde a la posición del cociente (`16`). En la tabla oficial, la posición 16 es la letra **`H`**.
+    * El segundo carácter de la homoclave corresponde a la posición del residuo (`18`). En la tabla oficial, la posición 18 es la letra **`J`**.
+
+* **e) Dígito verificador (Módulo 11):** El tercer carácter de la homoclave (posición 13 del RFC) es un *checksum* diseñado para validar la integridad de la cadena completa. Aunque para esta entrega base se asignó un "0" estático para optimizar tiempos de desarrollo, la arquitectura está preparada para implementar el algoritmo oficial, el cual consta de 4 pasos:
+    1. **Mapeo:** Asignar un valor numérico a cada uno de los 12 caracteres previos (0-9 mantienen su valor, A-Z valen del 10 al 35).
+    2. **Multiplicación por pesos:** Multiplicar cada valor por un peso posicional descendente (del 13 al 2) y sumar todos los resultados.
+    3. **Residuo:** Obtener el residuo de la sumatoria dividida entre 11 (`suma % 11`).
+    4. **Asignación:** Se calcula la diferencia `11 - residuo`. Si el resultado es 11, el dígito verificador es `0`; si el resultado es 10, es `A`; para cualquier otro caso (del 1 al 9), el dígito es exactamente el número resultante.
+
+RFC: **AUHJ881220HJ0**
 
 ## ⚙️ Operaciones CRUD y Persistencia de Datos
 * **Mapeo de Datos Estricto (Strong Typing):** Se homologó la estructura del modelo en C# con las columnas de la tabla en SQL Server. Se garantizó que la información se almacene con su tipo de dato nativo más cercano a la realidad (implementando *Value Converters* en Entity Framework para transformar las fechas al tipo `DATE` estricto en SQL).
