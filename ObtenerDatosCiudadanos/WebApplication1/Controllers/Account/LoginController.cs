@@ -27,12 +27,18 @@ namespace WebApplication1.Controllers
     /// </summary>
     public class LoginController : Controller
     {
-        private static readonly HttpClient _httpClient = new HttpClient();
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly AppDbContext _context;
 
-        public LoginController(AppDbContext context)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="httpClientFactory"></param>
+        public LoginController(AppDbContext context, IHttpClientFactory httpClientFactory)
         {
             _context = context;
+            _httpClientFactory = httpClientFactory;
         }
 
         /// <summary>
@@ -86,7 +92,8 @@ namespace WebApplication1.Controllers
                 try
                 {
                     string urlServicio = "https://krm.gruposancarlos.com:1443/api/Procesos/RetoCandidato?token=1ef0c880-002c-435b-b734-782c7575a6ad&num_registros=100";
-                    HttpResponseMessage response = await _httpClient.GetAsync(urlServicio);
+                    var client = _httpClientFactory.CreateClient("SanCarlosAPI");
+                    HttpResponseMessage response = await client.GetAsync(urlServicio);
 
                     if (response.IsSuccessStatusCode)
                     {

@@ -33,14 +33,14 @@ namespace WebApplication1
         /// <param name="services"></param>
         public void ConfigureServices(IServiceCollection services)
         {
-            // 1. Configura TempData para que use sesiones del servidor en lugar de cookies
+            // Configura TempData para que use sesiones del servidor en lugar de cookies
             services.AddControllersWithViews()
                     .AddSessionStateTempDataProvider();
 
-            // 2. Agrega soporte para guardar datos en la memoria del servidor
+            // Agrega soporte para guardar datos en la memoria del servidor
             services.AddDistributedMemoryCache();
 
-            // 3. Configura las opciones del estado de la sesión
+            // Configura las opciones del estado de la sesión
             services.AddSession(options =>
             {
                 options.IdleTimeout = TimeSpan.FromMinutes(15); // Los datos expiran tras 15 min de inactividad
@@ -48,7 +48,10 @@ namespace WebApplication1
                 options.Cookie.IsEssential = true;              // Requerido para que funcione aunque el usuario bloquee cookies secundarias
             });
 
-            // 4. Uso de cookies para protección del sistema.
+            // Agrega reintentos automáticos y protección contra caídas.
+            services.AddHttpClient("SanCarlosAPI").AddStandardResilienceHandler();
+
+            // Uso de cookies para protección del sistema.
             services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
             {
                 options.LoginPath = "/Login/Index"; // A dónde mandamos al usuario si no está logueado
@@ -56,6 +59,7 @@ namespace WebApplication1
                 options.AccessDeniedPath = "/Home/Error";
             });
 
+            // Conexión a la base de datos por defecto.
             services.AddDbContext<AppDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
         }
 

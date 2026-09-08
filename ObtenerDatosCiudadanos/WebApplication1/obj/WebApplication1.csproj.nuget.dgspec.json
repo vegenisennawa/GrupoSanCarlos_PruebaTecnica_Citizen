@@ -67,6 +67,10 @@
               "suppressParent": "All",
               "target": "Package",
               "version": "[8.0.8, )"
+            },
+            "Microsoft.Extensions.Http.Resilience": {
+              "target": "Package",
+              "version": "[10.9.0, )"
             }
           },
           "imports": [

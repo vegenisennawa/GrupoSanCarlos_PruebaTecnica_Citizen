@@ -15,3 +15,6 @@ Durante la sesión presencial en las oficinas, el proyecto se inició utilizando
 
 ## 🌐 Flujo de Datos
 Al momento de que el usuario pasa la validación del login, el sistema ejecuta internamente el consumo de la API de Grupo San Carlos. La respuesta JSON se transfiere de forma segura en memoria (`TempData`) hacia la vista final, garantizando que los datos ciudadanos solo se carguen si la autenticación fue exitosa.
+
+## 🌐 Consumo de API
+Para evitar el agotamiento de sockets (*socket exhaustion*), la conexión se gestiona mediante `IHttpClientFactory`. Además, se implementó el paquete nativo `Microsoft.Extensions.Http.Resilience` de .NET 8, el cual configura automáticamente políticas de resiliencia avanzadas (patrones de *Retry* y *Circuit Breaker*) para proteger la aplicación ante posibles caídas o intermitencias del servicio externo, sin necesidad de programar políticas manuales complejas.
