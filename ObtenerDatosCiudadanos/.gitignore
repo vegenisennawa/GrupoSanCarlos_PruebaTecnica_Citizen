@@ -1,0 +1,66 @@
+## User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Re]lease/
+[Re]leases/
+x64/
+x86/
+[A-Za-z0-9_]*_i.c
+[A-Za-z0-9_]*_p.c
+[A-Za-z0-9_]*_i.h
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.pch
+*.pdb
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*.log
+*.vspscc
+*.vshostex
+*_i.c
+*_p.c
+*.ilk
+*.target
+
+## Visual Studio 2015/2017/2019/2022 cache stage or any Redirection
+.vs/
+_ReSharper*/
+*.[Cc]runch*.xml
+*.DotSettings.user
+
+## JX / JetBrains Rider
+.idea/
+*.sln.iml
+
+## Core compile artifacts
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## ASP.NET Core
+mini-profiler-resources/
+
+## Visual Studio Code
+.vscode/
+
+## Secrets / Local Settings
+appsettings.Development.json
+appsettings.local.json
+.env
