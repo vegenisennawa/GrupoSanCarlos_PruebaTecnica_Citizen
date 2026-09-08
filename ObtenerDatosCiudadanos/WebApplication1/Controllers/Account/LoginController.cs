@@ -19,7 +19,7 @@ namespace WebApplication1.Controllers
     {
         public int CodigoEstatus { get; set; }
         public string Mensaje { get; set; }
-        public List<LeadViewModel> Respuesta { get; set; } // Aquí está la lista real
+        public List<Lead> Respuesta { get; set; } // Aquí está la lista real
     }
 
     /// <summary>

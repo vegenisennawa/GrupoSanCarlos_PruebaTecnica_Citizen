@@ -51,3 +51,12 @@ Se debe de tomar en cuenta que, si la persona solo tiene un apellido:
 * **J:** Primera letra del primer nombre.
 * **881220:** Año (88), Mes (12) y Día (20) de nacimiento.
 * **XXX:** Homoclave generada por el sistema (3 caracteres alfanuméricos).
+
+## ⚙️ Operaciones CRUD y Persistencia de Datos
+* **Mapeo de Datos Estricto (Strong Typing):** Se homologó la estructura del modelo en C# con las columnas de la tabla en SQL Server. Se garantizó que la información se almacene con su tipo de dato nativo más cercano a la realidad (implementando *Value Converters* en Entity Framework para transformar las fechas al tipo `DATE` estricto en SQL).
+* **Borrado Lógico (Soft Delete):** Por políticas de historial, auditoría y seguridad, el sistema no ejecuta eliminaciones físicas en la base de datos. En su lugar, se implementó un indicador de estado (`Activo` tipo `bit`) que inactiva el registro, ocultándolo de la vista principal pero preservando la integridad de los datos.
+* **Validación de Estado:** El sistema evalúa dinámicamente si un registro existe físicamente en SQL Server o si solo reside en la memoria temporal de la API. Si la información no ha sido persistida en la base de datos, la interfaz inactiva la funcionalidad de "Eliminar", previniendo transacciones nulas.
+
+## ✨ Interfaz y Experiencia de Usuario (UI/UX)
+* **Validación Front-End:** Se blindaron las vistas mediante validaciones nativas de HTML5 y expresiones regulares (Regex) en tiempo real para garantizar la captura de correos electrónicos y teléfonos con formato válido antes de procesar cualquier solicitud.
+* **Modales Modernos:** Se integró la librería **SweetAlert2** para manejar las confirmaciones de eliminación de registros, reemplazando las alertas genéricas del navegador por cuadros de diálogo estéticos, responsivos y profesionales.

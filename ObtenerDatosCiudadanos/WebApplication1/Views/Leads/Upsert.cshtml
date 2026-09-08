@@ -1,0 +1,56 @@
+@model WebApplication1.Controllers.Lead
+@{ ViewData["Title"] = "Completar Información"; }
+
+<div class="container mt-5">
+    <div class="card shadow">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="fas fa-user-edit me-2"></i> Captura de Datos Adicionales</h4>
+        </div>
+        <div class="card-body">
+            <form asp-action="Upsert" method="post">
+                <!-- Campos ocultos para no perder la data base de la API -->
+                <input type="hidden" asp-for="Nombre" />
+                <input type="hidden" asp-for="Apellido_Paterno" />
+                <input type="hidden" asp-for="Apellido_Materno" />
+                <input type="hidden" asp-for="Sexo" />
+                <input type="hidden" asp-for="Clave_Edo_Nac" />
+                <input type="hidden" asp-for="Fecha_Nac" />
+                <input type="hidden" asp-for="Rfc_Calculado" />
+                <input type="hidden" asp-for="Rfc_Comparacion" />
+                <input type="hidden" asp-for="Curp_Calculada" />
+                <input type="hidden" asp-for="Curp_Comparacion" />
+
+                <div class="alert alert-secondary">
+                    <strong>Ciudadano:</strong> @Model.Nombre @Model.Apellido_Paterno @Model.Apellido_Materno <br />
+                    <strong>RFC:</strong> @Model.Rfc_Calculado
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Correo Electrónico</label>
+                        <input asp-for="CorreoElectronico" class="form-control" type="email" required pattern="[a-zA-Z0-9._%+\-]+@@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}" oninput="this.value = this.value.replace(/[^a-zA-Z0-9._%+\-@@]/g, '');" placeholder="ejemplo@correo.com"  title="Ingresa un e-mail válido (ejemplo: usuario@dominio.com)" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Teléfono</label>
+                        <input asp-for="Telefono" class="form-control" type="text" required maxlength="10" pattern="[0-9]{10}" oninput="this.value = this.value.replace(/[^0-9]/g, '');" placeholder="10 dígitos" title="Debe contener exactamente 10 números" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Estado Civil</label>
+                        <select asp-for="EstadoCivil" class="form-select" required>
+                            <option value="">Seleccione...</option>
+                            <option value="Soltero(a)">Soltero(a)</option>
+                            <option value="Casado(a)">Casado(a)</option>
+                            <option value="Divorciado(a)">Divorciado(a)</option>
+                            <option value="Viudo(a)">Viudo(a)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-end">
+                    <a asp-action="Index" class="btn btn-secondary me-2">Cancelar</a>
+                    <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Guardar en BD</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

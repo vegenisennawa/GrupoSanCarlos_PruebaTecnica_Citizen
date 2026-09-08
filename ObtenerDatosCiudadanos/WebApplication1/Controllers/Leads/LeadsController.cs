@@ -1,17 +1,21 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using System;                     
+﻿using System;                     
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;                
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using WebApplication1.Data;
 
 namespace WebApplication1.Controllers
 {
     /// <summary>
     /// Esta es la estructura que representará a cada ciudadano
     /// </summary>
-    public class LeadViewModel
+    [Table("Leads")]
+    public class Lead
     {
+        public int Id { get; set; }
         public string Nombre { get; set; }
         public string Apellido_Paterno { get; set; }
         public string Apellido_Materno { get; set; }
@@ -20,10 +24,54 @@ namespace WebApplication1.Controllers
         public string Fecha_Nac { get; set; }
         public string Rfc_Comparacion { get; set; }
         public string Curp_Comparacion { get; set; }
+        public string CorreoElectronico { get; set; }
+        public string Telefono { get; set; }
+        public string EstadoCivil { get; set; }
+        public DateTime FechaRegistro { get; set; }
+        public DateTime? FechaActualizacion { get; set; }
+        public bool Activo { get; set; } = true;
 
         // Diccionario oficial de palabras inconvenientes
         private static readonly string[] Inconvenientes = { "BUEY", "CACA", "CACO", "CAGA", "CAGO", "CAKA", "CAKO", "COGE", "COJA", "COJE", "COJI", "COJO", "CULO", "FETO", "GUEY", "JOTO", "KACA", "KACO", "KAGA", "KAGO", "KOGE", "KOJO", "KAKA", "KULO", "MAME", "MAMO", "MEAR", "MEAS", "MEON", "MION", "MOCO", "MULA", "PEDA", "PEDO", "PENE", "PUTA", "PUTO", "QULO", "RATA", "RUIN", "TETA", "VACA", "VAGA", "VAGO", "WEY" };
+        // Diccionario de preposiciones y artículos que se deben ignorar al calcular el RFC y CURP
         private static readonly string[] Preposiciones = { "DA ", "DAS ", "DE ", "DEL ", "DER ", "DI ", "DIE ", "DD ", "EL ", "LA ", "LOS ", "LAS ", "LE ", "LES ", "MAC ", "MC ", "VAN ", "VON ", "Y " };
+
+        /// <summary>
+        /// Diccionario de estados de la República Mexicana para validar la clave de estado en CURP
+        /// </summary>
+        private static readonly Dictionary<string, string> DiccionarioEstados = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            {"AS", "Aguascalientes"}, {"BC", "Baja California"}, {"BS", "Baja California Sur"},
+            {"CC", "Campeche"}, {"CL", "Coahuila"}, {"CM", "Colima"}, {"CS", "Chiapas"},
+            {"CH", "Chihuahua"}, {"DF", "Ciudad de México"}, {"DG", "Durango"},
+            {"GT", "Guanajuato"}, {"GR", "Guerrero"}, {"HG", "Hidalgo"}, {"JC", "Jalisco"},
+            {"MC", "Estado de México"}, {"MN", "Michoacán"}, {"MS", "Morelos"}, {"NT", "Nayarit"},
+            {"NL", "Nuevo León"}, {"OC", "Oaxaca"}, {"PL", "Puebla"}, {"QT", "Querétaro"},
+            {"QR", "Quintana Roo"}, {"SP", "San Luis Potosí"}, {"SL", "Sinaloa"}, {"SR", "Sonora"},
+            {"TC", "Tabasco"}, {"TS", "Tamaulipas"}, {"TL", "Tlaxcala"}, {"VZ", "Veracruz"},
+            {"YN", "Yucatán"}, {"ZS", "Zacatecas"}, {"NE", "Extranjero"}
+        };
+
+        /// <summary>
+        /// Estado formateado para mostrar en la vista, por ejemplo: "Jalisco (JC)"
+        /// </summary>
+        [NotMapped]  
+        public string EstadoFormateado
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(Clave_Edo_Nac)) return "N/A";
+
+                string claveLimpia = Clave_Edo_Nac.Trim().ToUpper();
+                if (DiccionarioEstados.TryGetValue(claveLimpia, out string nombreEstado))
+                {
+                    return $"{nombreEstado} ({claveLimpia})";
+                }
+                return claveLimpia; // Si por algo llega un código raro, muestra el código
+            }
+        }
+
+        private string _rfcCalculado;
 
         /// <summary>
         /// 
@@ -47,7 +95,11 @@ namespace WebApplication1.Controllers
                 }
                 catch { return "ERROR"; }
             }
+
+            set { _rfcCalculado = value; }
         }
+
+        private string _curpCalculada;
 
         /// <summary>
         /// 
@@ -81,6 +133,8 @@ namespace WebApplication1.Controllers
                 }
                 catch { return "ERROR"; }
             }
+
+            set { _curpCalculada = value; }
         }
 
         /// <summary>
@@ -229,16 +283,27 @@ namespace WebApplication1.Controllers
     [Authorize]
     public class LeadsController : Controller
     {
+        private readonly AppDbContext _context;
+
         /// <summary>
-        /// Responde a la URL: /Citizen/Index
+        /// 
+        /// </summary>
+        /// <param name="context"></param>
+        public LeadsController(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        /// <summary>
+        /// Responde a la URL: /Leads/Index
         /// </summary>
         /// <returns></returns>
         public IActionResult Index()
         {
-            List<LeadViewModel> listaCiudadanos = new List<LeadViewModel>();
+            List<Lead> listaCiudadanos = new List<Lead>();
 
             // Recuperamos el JSON de manera segura desde TempData
-            if (TempData["DatosCiudadanos"] is string jsonString)
+            if (TempData.Peek("DatosCiudadanos") is string jsonString)
             {
                 try
                 {
@@ -263,8 +328,119 @@ namespace WebApplication1.Controllers
                 return RedirectToAction("Index", "Login");
             }
 
+            //Se ocultan de la vista los "eliminados" de la base de datos.
+            var rfcEliminados = _context.Leads.Where(l => l.Activo == false).Select(l => l.Rfc_Comparacion).ToList();
+            listaCiudadanos = listaCiudadanos.Where(c => !rfcEliminados.Contains(c.Rfc_Comparacion)).ToList();
+
+            ViewBag.Guardados = _context.Leads.Where(l => l.Activo == true).Select(l => l.Rfc_Comparacion).ToList();
+
             // Enviamos la lista real extraída de la API a la vista de manera limpia
             return View(listaCiudadanos);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="rfc"></param>
+        /// <returns></returns>
+        [HttpGet]
+        public IActionResult Upsert(string rfc)
+        {
+            Lead ciudadanoActual = null;
+
+            // 1. Buscamos en la API usando el RFC de Comparación
+            if (TempData.Peek("DatosCiudadanos") is string jsonString)
+            {
+                var opciones = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var resultadoApi = JsonSerializer.Deserialize<ApiResponseWrapper>(jsonString, opciones);
+                ciudadanoActual = resultadoApi?.Respuesta?.FirstOrDefault(c => c.Rfc_Comparacion == rfc);
+            }
+
+            if (ciudadanoActual == null) return RedirectToAction("Index");
+
+            // Buscamos en BD usando el Rfc_Comparacion (Este SÍ lo traduce EF Core sin problema)
+            var leadExistente = _context.Leads.FirstOrDefault(l => l.Rfc_Comparacion == rfc);
+
+            // Si ya existía mandamos ese, si no, el nuevo de la API
+            return View(leadExistente ?? ciudadanoActual);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="leadFormulario"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public IActionResult Upsert(Lead leadFormulario)
+        {
+            // Validación de seguridad en el servidor (por si se saltaron el HTML)
+            leadFormulario.CorreoElectronico = leadFormulario.CorreoElectronico?.Trim();
+            leadFormulario.Telefono = leadFormulario.Telefono?.Trim();
+
+            if (string.IsNullOrWhiteSpace(leadFormulario.CorreoElectronico) ||
+                string.IsNullOrWhiteSpace(leadFormulario.Telefono) ||
+                string.IsNullOrWhiteSpace(leadFormulario.EstadoCivil) ||
+                !leadFormulario.Telefono.All(char.IsDigit)) // Verifica que TODOS sean números
+            {
+                // Si la información es basura o trae espacios en blanco, lo regresamos a la vista
+                return View(leadFormulario);
+            }
+
+            // Volvemos a buscar por el RFC de la API
+            var leadBd = _context.Leads.FirstOrDefault(l => l.Rfc_Comparacion == leadFormulario.Rfc_Comparacion);
+
+            if (leadBd == null)
+            {
+                //// NUEVO: Se inserta tal cual viene de la API + lo que capturaste
+                //if (DateTime.TryParse(leadFormulario.Fecha_Nac, out DateTime fechaLimpia))
+                //{
+                //    leadFormulario.Fecha_Nac = fechaLimpia.ToString("yyyyMMdd");
+                //}
+                leadFormulario.FechaRegistro = DateTime.Now;
+                _context.Leads.Add(leadFormulario);
+            }
+            else
+            {
+                // EXISTENTE: Solo actualizamos los datos adicionales solicitados
+                leadBd.CorreoElectronico = leadFormulario.CorreoElectronico;
+                leadBd.Telefono = leadFormulario.Telefono;
+                leadBd.EstadoCivil = leadFormulario.EstadoCivil;
+                leadBd.FechaActualizacion = DateTime.Now;
+
+                _context.Leads.Update(leadBd);
+            }
+
+            _context.SaveChanges();
+            return RedirectToAction("Index");
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="rfc"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public IActionResult Eliminar(string rfc)
+        {
+            var leadBd = _context.Leads.FirstOrDefault(l => l.Rfc_Comparacion == rfc);
+
+            if (leadBd == null)
+            {
+                // ¡Aviso! El lead no está en la BD, así que no hay nada que borrar físicamente.
+                TempData["MensajeAlerta"] = "El ciudadano aún no ha sido guardado en la base de datos, no se puede eliminar.";
+            }
+            else
+            {
+                // Si ya existía en BD, lo apagamos
+                leadBd.Activo = false;
+                leadBd.FechaActualizacion = DateTime.Now;
+                _context.Leads.Update(leadBd);
+                _context.SaveChanges();
+
+                TempData["MensajeExito"] = "Registro eliminado correctamente de la base de datos.";
+            }
+
+            return RedirectToAction("Index");
         }
     }
 }

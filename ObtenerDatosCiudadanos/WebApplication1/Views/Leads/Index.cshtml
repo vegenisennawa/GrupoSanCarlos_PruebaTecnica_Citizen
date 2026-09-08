@@ -1,28 +1,43 @@
-﻿@model IEnumerable<WebApplication1.Controllers.LeadViewModel>
-
+﻿@model IEnumerable<WebApplication1.Controllers.Lead>
 @{ ViewData["Title"] = "Consulta de Ciudadanos"; }
 
 <div class="container-fluid mt-4">
+
+    <!-- ALERTAS DINÁMICAS -->
+    @if (TempData["MensajeAlerta"] != null)
+    {
+        <div class="alert alert-warning alert-dismissible fade show d-flex justify-content-between align-items-center" role="alert">
+            <span><strong>¡Aviso!</strong> @TempData["MensajeAlerta"]</span>
+            <!-- La X universal infalible -->
+            <button type="button" class="btn text-dark fs-5 p-0 m-0" style="background:none; border:none;" data-bs-dismiss="alert" data-dismiss="alert" aria-label="Close">&times;</button>
+        </div>
+    }
+    @if (TempData["MensajeExito"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show d-flex justify-content-between align-items-center" role="alert">
+            <span><strong>¡Éxito!</strong> @TempData["MensajeExito"]</span>
+            <button type="button" class="btn text-dark fs-5 p-0 m-0" style="background:none; border:none;" data-bs-dismiss="alert" data-dismiss="alert" aria-label="Close">&times;</button>
+        </div>
+    }
+
     <div class="card shadow-sm">
         <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-            <h4 class="mb-0"><i class="fas fa-users me-2"></i>@ViewData["Title"]</h4>
+            <h4 class="mb-0">@ViewData["Title"]</h4>
             <span class="badge bg-primary">Registros cargados: @Model.Count()</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover table-striped mb-0 align-middle">
-                    <thead class="table-secondary">
+                <!-- Usamos table-sm para compactar y reducimos un poco la fuente -->
+                <table class="table table-sm table-hover table-striped mb-0 align-middle" style="font-size: 0.85rem;">
+                    <thead class="table-secondary text-center">
                         <tr>
                             <th>Nombre</th>
-                            <th>Apellido Paterno</th>
-                            <th>Apellido Materno</th>
-                            <th>Sexo</th>
-                            <th>Edo. Nac.</th>
-                            <th>Fecha Nac.</th>
-                            <th>RFC (Comp)</th>
-                            <th>RFC (Cal)</th>
-                            <th>CURP (Comp)</th>
-                            <th>CURP (Cal)</th>
+                            <th>Apellidos</th>
+                            <th>Sexo / Edo</th>
+                            <th>Nacimiento</th>
+                            <th>RFC (Api / Cal)</th>
+                            <th>CURP (Api / Cal)</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -30,15 +45,38 @@
                         {
                         <tr>
                             <td>@citizen.Nombre</td>
-                            <td>@citizen.Apellido_Paterno</td>
-                            <td>@citizen.Apellido_Materno</td>
-                            <td>@citizen.Sexo</td>
-                            <td class="text-center">@citizen.Clave_Edo_Nac</td>
+                            <td>@citizen.Apellido_Paterno @citizen.Apellido_Materno</td>
+                            <td class="text-center">@citizen.Sexo<br/><small class="text-muted">@citizen.EstadoFormateado</small></td>
                             <td class="text-center">@citizen.Fecha_Nac</td>
-                            <td><code class="text-primary">@citizen.Rfc_Comparacion</code></td>
-                            <td><code class="text-primary">@citizen.Rfc_Calculado</code></td>
-                            <td><code class="text-primary">@citizen.Curp_Comparacion</code></td>
-                            <td><code class="text-primary">@citizen.Curp_Calculada</code></td>
+                            <td class="text-nowrap">
+                                <small class="text-muted d-block">API: @citizen.Rfc_Comparacion</small>
+                                <strong class="text-primary">CAL: @citizen.Rfc_Calculado</strong>
+                            </td>
+                            <td class="text-nowrap">
+                                <small class="text-muted d-block">API: @citizen.Curp_Comparacion</small>
+                                <strong class="text-primary">CAL: @citizen.Curp_Calculada</strong>
+                            </td>
+                            <td class="text-center text-nowrap">
+                                <!-- Botones con TEXTO real -->
+                                <a asp-controller="Leads" asp-action="Upsert" asp-route-rfc="@citizen.Rfc_Comparacion" class="btn btn-sm btn-outline-success fw-bold">
+                                    Completar
+                                </a>
+                                @if (ViewBag.Guardados != null && ((List<string>)ViewBag.Guardados).Contains(citizen.Rfc_Comparacion))
+                                {
+                                    <form asp-action="Eliminar" asp-route-rfc="@citizen.Rfc_Comparacion" method="post" class="d-inline">
+                                        <button type="button" class="btn btn-sm btn-outline-danger fw-bold" onclick="confirmarEliminacion(this)">
+                                            Eliminar
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <!-- Botón gris inhabilitado -->
+                                    <button class="btn btn-sm btn-outline-secondary fw-bold" disabled title="Aún no se guarda en BD">
+                                        Eliminar
+                                    </button>
+                                }
+                            </td>
                         </tr>
                         }
                     </tbody>
@@ -47,3 +85,27 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <!-- Librería SweetAlert2 para modales hermosos -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+        function confirmarEliminacion(boton) {
+            Swal.fire({
+                title: '¿Está seguro?',
+                text: "Se intentará eliminar o dar de baja este registro.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545', // Rojo peligro
+                cancelButtonColor: '#6c757d',  // Gris cancelar
+                confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    boton.closest('form').submit();
+                }
+            });
+        }
+    </script>
+}

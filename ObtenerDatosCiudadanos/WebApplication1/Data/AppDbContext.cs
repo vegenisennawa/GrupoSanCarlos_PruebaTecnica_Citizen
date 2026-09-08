@@ -1,10 +1,14 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using WebApplication1.Controllers;
 
 namespace WebApplication1.Data
 {
-    // 1. Mapeo exacto de tu tabla de SQL Server
+    /// <summary>
+    /// Tabla usuarios
+    /// </summary>
     [Table("Usuarios")]
     public class Usuario
     {
@@ -13,11 +17,27 @@ namespace WebApplication1.Data
         public string Password { get; set; }
     }
 
-    // 2. El puente entre .NET y SQL Server
+    /// <summary>
+    /// El puente entre .NET y SQL Server
+    /// </summary>
     public class AppDbContext : DbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         public DbSet<Usuario> Usuarios { get; set; }
+        public DbSet<Lead> Leads { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // LA MAGIA: Le enseñamos a EF Core a castear la fecha automáticamente
+            modelBuilder.Entity<Lead>()
+                .Property(l => l.Fecha_Nac)
+                .HasConversion(
+                    v => DateTime.ParseExact(v, "dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture),
+                    v => v.ToString("dd/MM/yyyy")
+                );
+        }
     }
 }
