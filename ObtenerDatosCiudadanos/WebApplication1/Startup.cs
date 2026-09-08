@@ -1,15 +1,25 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
+using WebApplication1.Data;
 
 namespace WebApplication1
 {
+    /// <summary>
+    /// Método de inicio
+    /// </summary>
     public class Startup
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="configuration"></param>
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -17,7 +27,10 @@ namespace WebApplication1
 
         public IConfiguration Configuration { get; }
 
-        // Este método agrega servicios al contenedor de dependencias
+        /// <summary>
+        /// Este método agrega servicios al contenedor de dependencias
+        /// </summary>
+        /// <param name="services"></param>
         public void ConfigureServices(IServiceCollection services)
         {
             // 1. Configura TempData para que use sesiones del servidor en lugar de cookies
@@ -31,12 +44,26 @@ namespace WebApplication1
             services.AddSession(options =>
             {
                 options.IdleTimeout = TimeSpan.FromMinutes(15); // Los datos expiran tras 15 min de inactividad
-                options.Cookie.HttpOnly = true;                // Mayor seguridad contra scripts maliciosos
-                options.Cookie.IsEssential = true;             // Requerido para que funcione aunque el usuario bloquee cookies secundarias
+                options.Cookie.HttpOnly = true;                 // Mayor seguridad contra scripts maliciosos
+                options.Cookie.IsEssential = true;              // Requerido para que funcione aunque el usuario bloquee cookies secundarias
             });
+
+            // 4. Uso de cookies para protección del sistema.
+            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
+            {
+                options.LoginPath = "/Login/Index"; // A dónde mandamos al usuario si no está logueado
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(30); // Tiempo de sesión
+                options.AccessDeniedPath = "/Home/Error";
+            });
+
+            services.AddDbContext<AppDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
         }
 
-        // Este método configura el pipeline de solicitudes HTTP
+        /// <summary>
+        /// Este método configura el pipeline de solicitudes HTTP
+        /// </summary>
+        /// <param name="app"></param>
+        /// <param name="env"></param>
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
@@ -51,14 +78,11 @@ namespace WebApplication1
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
-
             app.UseRouting();
-
             // 4. ACTIVA EL MIDDLEWARE DE SESIÓN (Debe ir exactamente aquí, antes de Authorization y Endpoints)
             app.UseSession();
-
+            app.UseAuthentication();
             app.UseAuthorization();
-
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute(

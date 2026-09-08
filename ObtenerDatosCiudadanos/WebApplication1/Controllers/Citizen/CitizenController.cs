@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System;                     
 using System.Collections.Generic;
 using System.Linq;                
@@ -6,7 +7,9 @@ using System.Text.Json;
 
 namespace WebApplication1.Controllers
 {
-    // Esta es la estructura que representará a cada ciudadano
+    /// <summary>
+    /// Esta es la estructura que representará a cada ciudadano
+    /// </summary>
     public class CitizenViewModel
     {
         public string Nombre { get; set; }
@@ -52,6 +55,7 @@ namespace WebApplication1.Controllers
                         string f = fecha.ToString("yyMMdd");
                         return $"{c1}{c2}{c3}{c4}{f}";
                     }
+
                     return "FECHA_ERR";
                 }
                 catch
@@ -95,6 +99,11 @@ namespace WebApplication1.Controllers
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cadena"></param>
+        /// <returns></returns>
         private char ObtenerPrimeraConsonanteInterna(string cadena)
         {
             if (string.IsNullOrEmpty(cadena)) return 'X';
@@ -105,9 +114,16 @@ namespace WebApplication1.Controllers
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    [Authorize]
     public class CitizenController : Controller
     {
-        // Responde a la URL: /Citizen/Index
+        /// <summary>
+        /// Responde a la URL: /Citizen/Index
+        /// </summary>
+        /// <returns></returns>
         public IActionResult Index()
         {
             List<CitizenViewModel> listaCiudadanos = new List<CitizenViewModel>();

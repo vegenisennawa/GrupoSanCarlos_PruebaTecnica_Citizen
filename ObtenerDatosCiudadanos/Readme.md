@@ -1,6 +1,17 @@
-Proyecto de consulta de ciudadanos
-Juana Paulina Águila Hernández
+# Proyecto de Consulta de Ciudadanos - Grupo San Carlos
 
-Durante la sesión en las oficinas del Grupo San Carlos se estuvo trabajando con la versión 5. En casa se cambió a la versión 8, trabajándose en Visual Studio 2022.
+**Desarrolladora:** Juana Paulina Águila Hernández
 
-Al momento de validar el login se ejecuta el primer consumo de datos.
+## 🚀 Notas de la Migración
+Durante la sesión presencial en las oficinas, el proyecto se inició utilizando **.NET 5**. Para esta entrega final, la arquitectura fue migrada y refactorizada exitosamente a **.NET 8**, utilizando Visual Studio 2022.
+
+## 🔐 Arquitectura de Seguridad (Login)
+* **Base de Datos:** El inicio de sesión está conectado a una tabla en SQL Server (Entity Framework Core) para validar las credenciales reales.
+* **Autenticación Nativa:** Se implementó seguridad mediante *Cookies* y *Claims* de ASP.NET Core para proteger el acceso a los controladores (decorador `[Authorize]`).
+* **Encriptación Estándar:** Las contraseñas en la base de datos están protegidas con **Bcrypt**. Se eligió este algoritmo porque su factor de trabajo obliga al procesador a tomarse un tiempo adicional (mitigando ataques de fuerza bruta), y su sistema de "salting" automático garantiza que los hashes sean distintos incluso si dos usuarios tienen la misma contraseña.
+
+**Usuario:** admin <br>
+**Contraseña:** inmobiliaria2026
+
+## 🌐 Flujo de Datos
+Al momento de que el usuario pasa la validación del login, el sistema ejecuta internamente el consumo de la API de Grupo San Carlos. La respuesta JSON se transfiere de forma segura en memoria (`TempData`) hacia la vista final, garantizando que los datos ciudadanos solo se carguen si la autenticación fue exitosa.

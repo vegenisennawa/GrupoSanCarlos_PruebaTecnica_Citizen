@@ -1,13 +1,20 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System.Net.Http;
-using System.Threading.Tasks;
-using System.Text.Json;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Security.Claims;
+using System.Text.Json;
+using System.Threading.Tasks;
+using WebApplication1.Data;
 
 namespace WebApplication1.Controllers
 {
-
-    // Esta clase representa la estructura completa del JSON de la imagen
+    /// <summary>
+    /// 
+    /// </summary>
     public class ApiResponseWrapper
     {
         public int CodigoEstatus { get; set; }
@@ -15,53 +22,87 @@ namespace WebApplication1.Controllers
         public List<CitizenViewModel> Respuesta { get; set; } // Aquí está la lista real
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class LoginController : Controller
     {
         private static readonly HttpClient _httpClient = new HttpClient();
+        private readonly AppDbContext _context;
 
+        public LoginController(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         public IActionResult Index()
         {
             return View();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="usuario"></param>
+        /// <param name="password"></param>
+        /// <returns></returns>
         [HttpPost]
         public async Task<IActionResult> Index(string usuario, string password)
         {
-            try
+            if (!_context.Usuarios.Any())
             {
-                string urlServicio = "https://krm.gruposancarlos.com:1443/api/Procesos/RetoCandidato?token=1ef0c880-002c-435b-b734-782c7575a6ad&num_registros=100";
-
-                HttpResponseMessage response = await _httpClient.GetAsync(urlServicio);
-
-                if (response.IsSuccessStatusCode)
+                var nuevoUsuario = new Usuario
                 {
-                    string jsonString = await response.Content.ReadAsStringAsync();
+                    NombreUsuario = "admin",
+                    // ¡Aquí ocurre la magia de la encriptación!
+                    Password = BCrypt.Net.BCrypt.HashPassword("inmobiliaria2026")
+                };
+                _context.Usuarios.Add(nuevoUsuario);
+                _context.SaveChanges();
+            }
 
-                    var opciones = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var userDb = _context.Usuarios.FirstOrDefault(u => u.NombreUsuario == usuario);
 
-                    // SOLUCIÓN: Deserializamos al contenedor raíz, NO a la lista directamente
-                    var resultadoApi = JsonSerializer.Deserialize<ApiResponseWrapper>(jsonString, opciones);
+            //if (usuario == "admin" && password == "inmobiliaria2026")
+            if (userDb != null && BCrypt.Net.BCrypt.Verify(password, userDb.Password))
+            {
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, usuario),
+                    new Claim(ClaimTypes.Role, "Administrador")
+                };
 
-                    // De aquí puedes extraer la lista si necesitas validar algo antes de redirigir
-                    List<CitizenViewModel> listaCiudadanos = resultadoApi?.Respuesta ?? new List<CitizenViewModel>();
+                var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
-                    // Guardamos el JSON crudo en TempData para pasarlo al siguiente controlador
-                    TempData["DatosCiudadanos"] = jsonString;
+                await HttpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(claimsIdentity));
 
-                    return RedirectToAction("Index", "Citizen");
+                try
+                {
+                    string urlServicio = "https://krm.gruposancarlos.com:1443/api/Procesos/RetoCandidato?token=1ef0c880-002c-435b-b734-782c7575a6ad&num_registros=100";
+                    HttpResponseMessage response = await _httpClient.GetAsync(urlServicio);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string jsonString = await response.Content.ReadAsStringAsync();
+                        TempData["DatosCiudadanos"] = jsonString;
+                        return RedirectToAction("Index", "Citizen");
+                    }
                 }
-                else
+                catch (System.Exception ex)
                 {
-                    ViewBag.Error = $"Error en el servicio: {response.StatusCode}";
-                    return View();
+                    ViewBag.Error = "Error al obtener los datos de la API: " + ex.Message;
                 }
             }
-            catch (System.Exception ex)
-            {
-                ViewBag.Error = $"No se pudo conectar al servicio: {ex.Message}";
-                return View();
-            }
+
+            ViewBag.Error = "Usuario o contraseña incorrectos.";
+            return View();
         }
     }
 }

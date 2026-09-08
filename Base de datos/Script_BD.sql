@@ -20,6 +20,3 @@ BEGIN
     );
 END
 GO
-
---Inserción de dato de prueba.
-INSERT INTO Usuarios (NombreUsuario, Password) VALUES ('admin', 'inmobiliaria2026');
