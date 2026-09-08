@@ -22,6 +22,10 @@ Para evitar el agotamiento de sockets (*socket exhaustion*), la conexión se ges
 ## 🪪 Cálculo de RFC y CURP (Personas Físicas)
 Se implementó un motor de reglas para cumplir con las normativas vigentes, incluyendo diccionarios para omitir preposiciones (DE, LA, DEL, etc.) y un filtro de palabras inconvenientes. Al no contar con los registros originales del SAT/RENAPO, el sistema genera las homoclaves de manera automática.
 
+Se debe de tomar en cuenta que, si la persona solo tiene un apellido:
+* En la CURP se coloca una X en la primera letra del apellido materno.
+* En el RFC, las letras 3 y 4 corresponden a la primera y segunda letra del primer nombre (o único nombre).
+
 **Ejemplo del algoritmo en acción:**
 * **Datos:** Juana Paulina Águila Hernández (Femenino (Mujer), Jalisco, Nacimiento: 20-12-1988)
 * **RFC Calculado:** `AUHJ881220XXX`

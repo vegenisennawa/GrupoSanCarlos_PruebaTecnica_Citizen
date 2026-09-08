@@ -19,7 +19,7 @@ namespace WebApplication1.Controllers
     {
         public int CodigoEstatus { get; set; }
         public string Mensaje { get; set; }
-        public List<CitizenViewModel> Respuesta { get; set; } // Aquí está la lista real
+        public List<LeadViewModel> Respuesta { get; set; } // Aquí está la lista real
     }
 
     /// <summary>
@@ -99,7 +99,7 @@ namespace WebApplication1.Controllers
                     {
                         string jsonString = await response.Content.ReadAsStringAsync();
                         TempData["DatosCiudadanos"] = jsonString;
-                        return RedirectToAction("Index", "Citizen");
+                        return RedirectToAction("Index", "Leads");
                     }
                 }
                 catch (System.Exception ex)

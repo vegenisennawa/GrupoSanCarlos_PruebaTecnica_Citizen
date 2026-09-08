@@ -10,7 +10,7 @@ namespace WebApplication1.Controllers
     /// <summary>
     /// Esta es la estructura que representará a cada ciudadano
     /// </summary>
-    public class CitizenViewModel
+    public class LeadViewModel
     {
         public string Nombre { get; set; }
         public string Apellido_Paterno { get; set; }
@@ -35,7 +35,7 @@ namespace WebApplication1.Controllers
                 try
                 {
                     if (string.IsNullOrEmpty(Nombre) || string.IsNullOrEmpty(Apellido_Paterno) || string.IsNullOrEmpty(Fecha_Nac)) return "INCOMPLETO";
-                    string baseRfc = ObtenerLetrasBase();
+                    string baseRfc = ObtenerLetrasBaseRFC();
 
                     if (DateTime.TryParse(Fecha_Nac, out DateTime fecha))
                     {
@@ -60,7 +60,7 @@ namespace WebApplication1.Controllers
                 {
                     if (string.IsNullOrEmpty(Nombre) || string.IsNullOrEmpty(Apellido_Paterno) || string.IsNullOrEmpty(Sexo) || string.IsNullOrEmpty(Clave_Edo_Nac)) return "INCOMPLETO";
 
-                    string baseRfc = ObtenerLetrasBase();
+                    string baseRfc = ObtenerLetrasBaseCURP();
                     if (DateTime.TryParse(Fecha_Nac, out DateTime fecha))
                     {
                         string f = fecha.ToString("yyMMdd");
@@ -93,6 +93,7 @@ namespace WebApplication1.Controllers
             if (string.IsNullOrEmpty(texto)) return "";
             texto = texto.ToUpper().Trim();
             texto = texto.Replace("Ñ", "X").Replace("Á", "A").Replace("É", "E").Replace("Í", "I").Replace("Ó", "O").Replace("Ú", "U");
+            texto = texto.Replace(".", "").Replace(",", "").Replace("-", "").Replace("/", "").Trim();
             return texto;
         }
 
@@ -138,7 +139,42 @@ namespace WebApplication1.Controllers
         /// 
         /// </summary>
         /// <returns></returns>
-        private string ObtenerLetrasBase()
+        private string ObtenerLetrasBaseRFC()
+        {
+            string p = RemoverPreposiciones(Apellido_Paterno);
+            string m = RemoverPreposiciones(Apellido_Materno);
+            string n = ObtenerNombreValido(Nombre);
+
+            string base4 = "";
+
+            if (string.IsNullOrEmpty(p) || string.IsNullOrEmpty(m))
+            {
+                string unicoApellido = string.IsNullOrEmpty(p) ? m : p;
+                char c1 = unicoApellido.Length > 0 ? unicoApellido[0] : 'X';
+                char c2 = unicoApellido.Length > 1 ? unicoApellido[1] : 'X';
+                char c3 = n.Length > 0 ? n[0] : 'X';
+                char c4 = n.Length > 1 ? n[1] : 'X';
+                base4 = $"{c1}{c2}{c3}{c4}";
+            }
+            else
+            {
+                char c1 = p.Length > 0 ? p[0] : 'X';
+                char c2 = p.Length > 1 ? (p.Substring(1).FirstOrDefault(c => "AEIOU".Contains(c))) : 'X';
+                if (c2 == '\0') c2 = 'X';
+                char c3 = m.Length > 0 ? m[0] : 'X';
+                char c4 = n.Length > 0 ? n[0] : 'X';
+                base4 = $"{c1}{c2}{c3}{c4}";
+            }
+
+            if (Inconvenientes.Contains(base4)) base4 = base4[0] + "X" + base4.Substring(2);
+            return base4;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        private string ObtenerLetrasBaseCURP()
         {
             string p = RemoverPreposiciones(Apellido_Paterno);
             string m = RemoverPreposiciones(Apellido_Materno);
@@ -147,15 +183,12 @@ namespace WebApplication1.Controllers
             char c1 = p.Length > 0 ? p[0] : 'X';
             char c2 = p.Length > 1 ? (p.Substring(1).FirstOrDefault(c => "AEIOU".Contains(c))) : 'X';
             if (c2 == '\0') c2 = 'X';
-            char c3 = string.IsNullOrEmpty(m) ? 'X' : m[0];
+            char c3 = string.IsNullOrEmpty(m) ? 'X' : m[0]; // La famosa 'X' de RENAPO
             char c4 = n.Length > 0 ? n[0] : 'X';
 
             string base4 = $"{c1}{c2}{c3}{c4}";
 
-            // Validar palabras inconvenientes
-            if (Inconvenientes.Contains(base4))
-                base4 = base4[0] + "X" + base4.Substring(2);
-
+            if (Inconvenientes.Contains(base4)) base4 = base4[0] + "X" + base4.Substring(2);
             return base4;
         }
 
@@ -194,7 +227,7 @@ namespace WebApplication1.Controllers
     /// 
     /// </summary>
     [Authorize]
-    public class CitizenController : Controller
+    public class LeadsController : Controller
     {
         /// <summary>
         /// Responde a la URL: /Citizen/Index
@@ -202,7 +235,7 @@ namespace WebApplication1.Controllers
         /// <returns></returns>
         public IActionResult Index()
         {
-            List<CitizenViewModel> listaCiudadanos = new List<CitizenViewModel>();
+            List<LeadViewModel> listaCiudadanos = new List<LeadViewModel>();
 
             // Recuperamos el JSON de manera segura desde TempData
             if (TempData["DatosCiudadanos"] is string jsonString)
@@ -222,6 +255,12 @@ namespace WebApplication1.Controllers
                     // Manejo elemental de error de deserialización en caso de datos corruptos
                     ViewBag.Error = "No se pudieron procesar los datos transferidos.";
                 }
+            }
+
+            // Si no regresa ningún dato entonces me regresa al login.
+            if (listaCiudadanos == null || listaCiudadanos.Count == 0)
+            {
+                return RedirectToAction("Index", "Login");
             }
 
             // Enviamos la lista real extraída de la API a la vista de manera limpia
