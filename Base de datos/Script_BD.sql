@@ -42,5 +42,8 @@ BEGIN
         FechaActualizacion DATETIME NULL,
         Activo BIT NOT NULL CONSTRAINT DF_Leads_Activo DEFAULT 1
     );
+
+    CREATE NONCLUSTERED INDEX IX_Leads_RfcComparacion ON Leads(Rfc_Comparacion);
+    CREATE NONCLUSTERED INDEX IX_Leads_Activo ON Leads(Activo);
 END
 GO

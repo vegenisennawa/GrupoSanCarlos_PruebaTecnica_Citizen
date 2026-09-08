@@ -60,3 +60,22 @@ Se debe de tomar en cuenta que, si la persona solo tiene un apellido:
 ## ✨ Interfaz y Experiencia de Usuario (UI/UX)
 * **Validación Front-End:** Se blindaron las vistas mediante validaciones nativas de HTML5 y expresiones regulares (Regex) en tiempo real para garantizar la captura de correos electrónicos y teléfonos con formato válido antes de procesar cualquier solicitud.
 * **Modales Modernos:** Se integró la librería **SweetAlert2** para manejar las confirmaciones de eliminación de registros, reemplazando las alertas genéricas del navegador por cuadros de diálogo estéticos, responsivos y profesionales.
+
+## 📝 Preguntas de Criterio Técnico
+
+**1. Autenticación:** *¿Qué método o tecnología de autenticación elegiste implementar en .NET 8 y cuáles fueron los motivos técnicos para seleccionarlo sobre otras alternativas en un esquema MVC?*
+
+**Respuesta:** 
+Elegí implementar la autenticación nativa de ASP.NET Core basada en **Cookies y Claims**. En un esquema MVC arquitectónicamente tradicional (donde el servidor es quien renderiza las vistas), el uso de Cookies es el estándar más seguro, nativo y eficiente para mantener el estado de la sesión, a diferencia de tecnologías como JWT (JSON Web Tokens), las cuales son ideales para arquitecturas desacopladas (SPAs o APIs RESTful puras) pero añaden una complejidad innecesaria en la gestión del lado del cliente para MVC. Adicionalmente, el resguardo de credenciales se delegó a **Bcrypt** para aprovechar su sistema de "salting" y mitigación de ataques por fuerza bruta.
+
+---
+
+**2. Consumo de API en Producción:** *En un escenario de producción con más de 100,000 registros, ¿cómo optimizarías el consumo de la API y el cálculo masivo de RFC/CURP para no congelar la interfaz de usuario?*
+
+**Respuesta:**
+Para garantizar una experiencia fluida en la UI y no saturar la memoria del servidor, implementaría las siguientes estrategias combinadas:
+
+*   **Manejo de carga en segundo plano:** Delegar el consumo masivo de la API y los cálculos matemáticos pesados (RFC/CURP) a tareas asíncronas (como un *BackgroundService* o WebWorkers), evitando así bloquear el hilo principal de la interfaz de usuario.
+*   **Paginación:** Implementar paginación desde el servidor (*Server-Side Pagination*) para traer y renderizar los datos en bloques pequeños bajo demanda, en lugar de intentar cargar 100,000 nodos en el DOM simultáneamente.
+*   **Caché de información:** Implementar una capa de caché (por ejemplo, *MemoryCache* o Redis) para almacenar temporalmente los resultados y servir consultas recurrentes más rápido.
+*   **Evitar redundancia mediante deltas:** Validar datos clave utilizando una **fecha de última actualización**. De esta forma, las sincronizaciones posteriores solo calcularían e insertarían los registros nuevos o modificados, evitando el recálculo masivo e innecesario de toda la base de datos.
